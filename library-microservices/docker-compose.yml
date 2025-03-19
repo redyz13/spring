@@ -1,0 +1,99 @@
+version: '3.9'
+
+services:
+  eureka-server:
+    # Build the eureka-server image using the Dockerfile
+    build:
+      context: ./eureka-server
+    ports:
+      - "8761:8761"  # Expose the Eureka Server port for debugging
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "curl --fail --silent localhost:8761/actuator/health | grep UP || exit 1" ]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+      start_period: 15s
+
+  authors-service:
+    # Build the authors-service image using the Dockerfile
+    build:
+      context: ./authors-service
+    # The authors-service does not expose its port to the host to ensure access only via API Gateway
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka
+    depends_on:
+      eureka-server:
+        condition: service_healthy  # Ensure Eureka is available before starting this service
+    volumes:
+    - h2-authors-data:/h2-data # Persist the H2 database data for Authors Service
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  books-service:
+    # Build the books-service image using the Dockerfile
+    build:
+      context: ./books-service
+    # The books-service does not expose its port to the host to ensure access only via API Gateway
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka
+    depends_on:
+      eureka-server:
+        condition: service_healthy  # Ensure Eureka is available before starting this service
+      authors-service:
+        condition: service_started  # Ensure Authors Service starts before Books Service
+    volumes:
+      - h2-books-data:/h2-data # Persist the H2 database data for Books Service
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  auth-service:
+    # Build the auth-service image using the Dockerfile
+    build:
+      context: ./auth-service
+    # Authentication service does not expose its port to the host for security reasons
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka
+    depends_on:
+      eureka-server:
+        condition: service_healthy  # Ensure Eureka is available before starting this service
+    volumes:
+      - h2-auth-data:/h2-data # Persist the H2 database data for Auth Service
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  api-gateway:
+    # Build the API Gateway image using the Dockerfile
+    build:
+      context: ./api-gateway
+    ports:
+      - "8080:8080"  # Expose the API Gateway port, as it is the only entry point to the system
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka
+    depends_on:
+      eureka-server:
+        condition: service_healthy  # Ensure Eureka is available before starting this service
+      authors-service:
+        condition: service_started  # Ensure Authors Service starts before API Gateway
+      books-service:
+        condition: service_started  # Ensure Books Service starts before API Gateway
+      auth-service:
+        condition: service_started  # Ensure Auth Service starts before API Gateway
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+networks:
+  microservices-network:
+    driver: bridge  # Define the network to allow inter-container communication
+
+# Define the volumes to persist the H2 database data
+volumes:
+  h2-auth-data:
+  h2-authors-data:
+  h2-books-data:
