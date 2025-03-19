@@ -8,7 +8,9 @@ import java.util.UUID;
 
 public interface AuthorService {
     AuthorEntity saveAuthor(AuthorEntity authorEntity);
+    void deleteAuthor(UUID id);
     List<AuthorEntity> getAllAuthors();
     AuthorEntity updateAuthor(UUID id, AuthorEntity authorEntity);
     AuthorEntity partialUpdateAuthor(UUID id, Map<String, Object> updates);
+    AuthorEntity getAuthorById(UUID id);
 }

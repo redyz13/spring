@@ -26,8 +26,13 @@ public class BookServiceImpl implements BookService {
         this.authorClient = authorClient;
     }
 
+    @Override
     public BookEntity saveBook(BookEntity bookEntity) {
         AuthorDTO authorDTO = authorClient.getAuthorById(bookEntity.getAuthorId());
+
+        if (bookRepository.existsById(bookEntity.getIsbn()))
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "Book already exists with ISBN: " + bookEntity.getIsbn());
 
         if (authorDTO == null)
             throw new ResponseStatusException(
@@ -37,6 +42,22 @@ public class BookServiceImpl implements BookService {
         return bookRepository.save(bookEntity);
     }
 
+    @Override
+    public void deleteBook(String id) {
+        BookEntity bookEntity = bookRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Book not found with ID: " + id));
+        bookRepository.delete(bookEntity);
+    }
+
+    @Override
+    public void deleteBooksByAuthor(UUID authorId) {
+        List<BookEntity> books = bookRepository.findByAuthorId(authorId);
+        if (!books.isEmpty())
+            bookRepository.deleteAllInBatch(books);
+    }
+
+    @Override
     public List<BookEntity> getAllBooks() {
         return bookRepository.findAll();
     }
@@ -86,15 +107,15 @@ public class BookServiceImpl implements BookService {
                         HttpStatus.NOT_FOUND, "Book not found with ID: " + id));
     }
 
+    @Override
     public BookEntity getBookById(String id) {
         return bookRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Book not found with ID: " + id));
     }
 
+    @Override
     public List<BookEntity> getBooksByAuthor(UUID id) {
-        return bookRepository.findByAuthorId(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Books not found for Author with ID: " + id));
+        return bookRepository.findByAuthorId(id);
     }
 }
