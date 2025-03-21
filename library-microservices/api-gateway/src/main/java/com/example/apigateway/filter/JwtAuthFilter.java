@@ -1,6 +1,7 @@
 package com.example.apigateway.filter;
 
 import com.example.apigateway.config.RouteValidator;
+import com.example.apigateway.properties.JwtProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
@@ -10,7 +11,6 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -26,12 +26,11 @@ import java.util.List;
 @Component
 public class JwtAuthFilter implements GlobalFilter, Ordered {
     private final RouteValidator routeValidator;
+    private final JwtProperties jwtProperties;
 
-    @Value("${jwt.secret}")
-    private String secret;
-
-    public JwtAuthFilter(RouteValidator routeValidator) {
+    public JwtAuthFilter(RouteValidator routeValidator, JwtProperties jwtProperties) {
         this.routeValidator = routeValidator;
+        this.jwtProperties = jwtProperties;
     }
 
     @Override
@@ -55,12 +54,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         log.info("🔑 Received Token: {}", token);
 
         try {
-            Jwt<?, Claims> jwt = Jwts.parser()
-                    .verifyWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret)))
-                    .build()
-                    .parseSignedClaims(token);
-
-            Claims claims = jwt.getPayload();
+            Claims claims = validateToken(token, jwtProperties.getAccessSecret());
             String username = claims.getSubject();
             log.info("✅  Token valid for user: {}", username);
 
@@ -90,5 +84,13 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     @Override
     public int getOrder() {
         return -1;
+    }
+
+    private Claims validateToken(String token, String secretKey) {
+        Jwt<?, Claims> jwt = Jwts.parser()
+                .verifyWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey)))
+                .build()
+                .parseSignedClaims(token);
+        return jwt.getPayload();
     }
 }

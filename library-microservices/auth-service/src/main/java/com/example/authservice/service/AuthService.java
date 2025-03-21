@@ -1,10 +1,18 @@
 package com.example.authservice.service;
 
-import com.example.authservice.domain.dto.AuthRequestDTO;
+import com.example.authservice.domain.AuthTokens;
+import com.example.authservice.domain.Credentials;
 import com.example.authservice.domain.entity.UserEntity;
 
-public interface AuthService {
-    UserEntity register(AuthRequestDTO authRequestDTO);
+import java.util.UUID;
 
-    String verify(AuthRequestDTO authRequestDTO);
+
+public interface AuthService {
+    UserEntity register(Credentials credentials);
+
+    AuthTokens verify(Credentials credentials);
+
+    void logout(String refreshToken);
+
+    AuthTokens refreshAccessToken(String refreshToken);
 }

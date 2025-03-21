@@ -19,13 +19,13 @@ public class TokenEntity {
     @UuidGenerator
     private UUID id;
 
-    @Column(nullable = false, unique = true)
-    private String token;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
     @Column(nullable = false)
     private LocalDateTime expiryDate;
+
+    @Column(nullable = false)
+    private boolean revoked;
 }

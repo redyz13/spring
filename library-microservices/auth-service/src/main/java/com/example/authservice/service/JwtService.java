@@ -2,8 +2,14 @@ package com.example.authservice.service;
 
 import com.example.authservice.domain.entity.UserEntity;
 
-public interface JwtService {
-    String generateToken(UserEntity userEntity);
+import java.util.UUID;
 
-    boolean validateToken(String token);
+public interface JwtService {
+    String generateAccessToken(UserEntity userEntity);
+
+    String generateRefreshToken(UUID refreshTokenId);
+
+    boolean validateToken(String token, boolean isRefreshToken);
+
+    UUID getRefreshTokenId(String refreshToken);
 }

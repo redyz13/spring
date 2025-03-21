@@ -1,9 +1,11 @@
 package com.example.authservice.service.impl;
 
-import com.example.authservice.domain.dto.AuthRequestDTO;
+import com.example.authservice.domain.AuthTokens;
+import com.example.authservice.domain.Credentials;
 import com.example.authservice.domain.entity.RoleEntity;
 import com.example.authservice.domain.entity.TokenEntity;
 import com.example.authservice.domain.entity.UserEntity;
+import com.example.authservice.properties.JwtProperties;
 import com.example.authservice.repository.RoleRepository;
 import com.example.authservice.repository.TokenRepository;
 import com.example.authservice.repository.UserRepository;
@@ -27,40 +29,39 @@ public class AuthServiceImpl implements AuthService {
     private final RoleRepository roleRepository;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final JwtProperties jwtProperties;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.default-role}")
     private String defaultRole;
 
-    @Value("${jwt.expirationHours}")
-    private int expirationHours;
-
     public AuthServiceImpl(UserRepository userRepository, TokenRepository tokenRepository, RoleRepository roleRepository,
-                           AuthenticationManager authenticationManager, JwtService jwtService,
+                           AuthenticationManager authenticationManager, JwtService jwtService, JwtProperties jwtProperties,
                            PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.roleRepository = roleRepository;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.jwtProperties = jwtProperties;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Override
-    public UserEntity register(AuthRequestDTO authRequestDTO) {
-        userRepository.findByUsername(authRequestDTO.getUsername())
+    public UserEntity register(Credentials credentials) {
+        userRepository.findByUsername(credentials.getUsername())
                 .ifPresent(user -> {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already in use");
                 });
 
-        String hashedPassword = passwordEncoder.encode(authRequestDTO.getPassword());
+        String hashedPassword = passwordEncoder.encode(credentials.getPassword());
 
         RoleEntity userRole = roleRepository.findByName(defaultRole)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.INTERNAL_SERVER_ERROR, "Default role not found: " + defaultRole));
 
         UserEntity newUser = UserEntity.builder()
-                .username(authRequestDTO.getUsername())
+                .username(credentials.getUsername())
                 .password(hashedPassword)
                 // TODO .verified(false)
                 .roles(new HashSet<>(Collections.singletonList(userRole)))
@@ -70,25 +71,64 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String verify(AuthRequestDTO authRequestDTO) {
+    public AuthTokens verify(Credentials credentials) {
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(authRequestDTO.getUsername(), authRequestDTO.getPassword())
+                new UsernamePasswordAuthenticationToken(credentials.getUsername(), credentials.getPassword())
         );
 
-        UserEntity userEntity = userRepository.findByUsername(authRequestDTO.getUsername())
+        UserEntity userEntity = userRepository.findByUsername(credentials.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         /* TODO if (!userEntity.isVerified())
             throw new IllegalArgumentException("User not verified"); */
 
-        String token = jwtService.generateToken(userEntity);
-        TokenEntity tokenEntity = TokenEntity.builder()
-                .token(token)
+        TokenEntity refreshTokenEntity = TokenEntity.builder()
                 .user(userEntity)
-                .expiryDate(LocalDateTime.now().plusHours(expirationHours))
+                .expiryDate(LocalDateTime.now().plusDays(jwtProperties.getRefreshExpirationDays()))
+                .revoked(false)
                 .build();
-        tokenRepository.save(tokenEntity);
 
-        return token;
+        refreshTokenEntity = tokenRepository.save(refreshTokenEntity);
+
+        String accessToken = jwtService.generateAccessToken(userEntity);
+        String refreshToken = jwtService.generateRefreshToken(refreshTokenEntity.getId());
+
+        return new AuthTokens(accessToken, refreshToken);
+    }
+
+    @Override
+    public void logout(String refreshToken) {
+        UUID tokenId = jwtService.getRefreshTokenId(refreshToken);
+
+        tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Refresh token not found"));
+
+        tokenRepository.updateRevokedById(true, tokenId);
+    }
+
+    @Override
+    public AuthTokens refreshAccessToken(String refreshToken) {
+        UUID refreshTokenId = jwtService.getRefreshTokenId(refreshToken);
+
+        TokenEntity oldToken = tokenRepository.findById(refreshTokenId)
+                .orElseThrow(() -> new IllegalArgumentException("Refresh token not found"));
+
+        if (oldToken.isRevoked() || oldToken.getExpiryDate().isBefore(LocalDateTime.now()))
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token expired or revoked");
+
+        oldToken.setRevoked(true);
+        tokenRepository.save(oldToken);
+
+        TokenEntity newToken = TokenEntity.builder()
+                .user(oldToken.getUser())
+                .expiryDate(LocalDateTime.now().plusDays(jwtProperties.getRefreshExpirationDays()))
+                .revoked(false)
+                .build();
+        tokenRepository.save(newToken);
+
+        String newAccessToken = jwtService.generateAccessToken(newToken.getUser());
+        String newRefreshToken = jwtService.generateRefreshToken(newToken.getId());
+
+        return new AuthTokens(newAccessToken, newRefreshToken);
     }
 }

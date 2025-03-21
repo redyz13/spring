@@ -1,8 +1,8 @@
 package com.example.authservice.controller;
 
-import com.example.authservice.domain.dto.AuthRequestDTO;
-import com.example.authservice.domain.dto.AuthResponseDTO;
-import com.example.authservice.domain.dto.UserDTO;
+import com.example.authservice.domain.AuthTokens;
+import com.example.authservice.domain.Credentials;
+import com.example.authservice.domain.dto.*;
 import com.example.authservice.domain.entity.UserEntity;
 import com.example.authservice.mapper.Mapper;
 import com.example.authservice.service.AuthService;
@@ -23,14 +23,37 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AuthRequestDTO authRequestDTO) {
-        UserEntity newUserEntity = authService.register(authRequestDTO);
+        Credentials credentials = new Credentials(
+                authRequestDTO.getUsername(), authRequestDTO.getPassword()
+        );
+        UserEntity newUserEntity = authService.register(credentials);
         UserDTO newUserDTO = mapper.toDTO(newUserEntity);
         return new ResponseEntity<>(newUserDTO, HttpStatus.CREATED);
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequestDTO authRequestDTO) {
-        String token = authService.verify(authRequestDTO);
-        return new ResponseEntity<>(new AuthResponseDTO(token), HttpStatus.OK);
+        Credentials credentials = new Credentials(
+                authRequestDTO.getUsername(), authRequestDTO.getPassword()
+        );
+        AuthTokens tokens = authService.verify(credentials);
+        AuthResponseDTO authResponseDTO = new AuthResponseDTO(
+                tokens.getAccessToken(),
+                tokens.getRefreshToken()
+        );
+        return new ResponseEntity<>(authResponseDTO, HttpStatus.OK);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(@RequestBody LogoutRequestDTO logoutRequestDTO) {
+        authService.logout(logoutRequestDTO.getRefreshToken());
+        return ResponseEntity.ok("User logged out successfully");
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(@RequestBody TokenRefreshRequestDTO tokenRefreshRequestDTO) {
+        AuthTokens tokens = authService.refreshAccessToken(tokenRefreshRequestDTO.getRefreshToken());
+        AuthResponseDTO authResponseDTO = new AuthResponseDTO(tokens.getAccessToken(), tokens.getRefreshToken());
+        return ResponseEntity.ok(authResponseDTO);
     }
 }
