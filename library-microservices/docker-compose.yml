@@ -75,6 +75,8 @@ services:
       - "8080:8080"  # Expose the API Gateway port, as it is the only entry point to the system
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka
+    env_file:
+      - .env
     depends_on:
       eureka-server:
         condition: service_healthy  # Ensure Eureka is available before starting this service
