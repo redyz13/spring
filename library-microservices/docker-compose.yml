@@ -56,6 +56,8 @@ services:
     # Authentication service does not expose its port to the host for security reasons
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka
+    env_file:
+      - .env
     depends_on:
       eureka-server:
         condition: service_healthy  # Ensure Eureka is available before starting this service

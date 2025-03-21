@@ -5,8 +5,5 @@ FROM openjdk:21-jdk-slim
 ARG JAR_FILE=target/authors-service-0.0.1-SNAPSHOT.jar
 COPY ${JAR_FILE} authors-service.jar
 
-# Expose the Books Service port
-EXPOSE 8081
-
 # Run the JAR file
 ENTRYPOINT ["java", "-jar", "/authors-service.jar"]

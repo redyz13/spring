@@ -5,8 +5,5 @@ FROM openjdk:21-jdk-slim
 ARG JAR_FILE=target/api-gateway-0.0.1-SNAPSHOT.jar
 COPY ${JAR_FILE} api-gateway.jar
 
-# Expose the Books Service port
-EXPOSE 8081
-
 # Run the JAR file
 ENTRYPOINT ["java", "-jar", "/api-gateway.jar"]
