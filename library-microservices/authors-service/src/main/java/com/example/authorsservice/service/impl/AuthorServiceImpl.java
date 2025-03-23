@@ -25,10 +25,6 @@ public class AuthorServiceImpl implements AuthorService {
     }
 
     public AuthorEntity saveAuthor(AuthorEntity authorEntity) {
-        if (authorRepository.existsById(authorEntity.getId()))
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT, "Author already exists with ID: " + authorEntity.getId());
-
         return authorRepository.save(authorEntity);
     }
 
