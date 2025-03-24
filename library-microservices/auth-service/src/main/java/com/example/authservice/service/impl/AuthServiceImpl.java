@@ -100,8 +100,10 @@ public class AuthServiceImpl implements AuthService {
     public void logout(String refreshToken) {
         UUID tokenId = jwtService.getRefreshTokenId(refreshToken);
 
-        tokenRepository.findById(tokenId)
+        TokenEntity tokenEntity = tokenRepository.findById(tokenId)
                 .orElseThrow(() -> new IllegalArgumentException("Refresh token not found"));
+        if (tokenEntity.isRevoked())
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token already revoked");
 
         tokenRepository.updateRevokedById(true, tokenId);
     }

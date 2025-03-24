@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Repository
@@ -15,4 +16,7 @@ public interface TokenRepository extends JpaRepository<TokenEntity, UUID> {
     @Modifying
     @Query("update TokenEntity t set t.revoked = ?1 where t.id = ?2")
     void updateRevokedById(boolean revoked, UUID id);
+
+    @Transactional
+    int deleteByRevokedIsTrueOrExpiryDateBefore(LocalDateTime now);
 }
