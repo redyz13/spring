@@ -4,8 +4,10 @@ import com.example.authorsservice.client.BookClient;
 import com.example.authorsservice.domain.entity.AuthorEntity;
 import com.example.authorsservice.repository.AuthorRepository;
 import com.example.authorsservice.service.AuthorService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -15,20 +17,17 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class AuthorServiceImpl implements AuthorService {
     private final AuthorRepository authorRepository;
     private final BookClient bookClient;
-
-    public AuthorServiceImpl(AuthorRepository authorRepository, BookClient bookClient)  {
-        this.authorRepository = authorRepository;
-        this.bookClient = bookClient;
-    }
 
     public AuthorEntity saveAuthor(AuthorEntity authorEntity) {
         return authorRepository.save(authorEntity);
     }
 
     @Override
+    @Transactional
     public void deleteAuthor(UUID id) {
         AuthorEntity author = authorRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(

@@ -6,6 +6,8 @@ import com.example.booksservice.domain.dto.AuthorDTO;
 import com.example.booksservice.domain.entity.BookEntity;
 import com.example.booksservice.repository.BookRepository;
 import com.example.booksservice.service.BookService;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
@@ -17,14 +19,10 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class BookServiceImpl implements BookService {
     private final BookRepository bookRepository;
     private final AuthorClient authorClient;
-
-    public BookServiceImpl(BookRepository bookRepository, AuthorClient authorClient) {
-        this.bookRepository = bookRepository;
-        this.authorClient = authorClient;
-    }
 
     @Override
     public BookEntity saveBook(BookEntity bookEntity) {
@@ -51,6 +49,7 @@ public class BookServiceImpl implements BookService {
     }
 
     @Override
+    @Transactional
     public void deleteBooksByAuthor(UUID authorId) {
         List<BookEntity> books = bookRepository.findByAuthorId(authorId);
         if (!books.isEmpty())

@@ -18,7 +18,7 @@ public class TokenCleanupServiceImpl implements TokenCleanupService {
 
     @Override
     @Transactional
-    @Scheduled(cron = "0 0 * * * *")
+    @Scheduled(cron = "${token.cleanup.cron}")
     public void cleanupTokens() {
         LocalDateTime now = LocalDateTime.now();
         int deleted = tokenRepository.deleteByRevokedIsTrueOrExpiryDateBefore(now);

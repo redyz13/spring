@@ -11,6 +11,8 @@ import com.example.authservice.repository.TokenRepository;
 import com.example.authservice.repository.UserRepository;
 import com.example.authservice.service.AuthService;
 import com.example.authservice.service.JwtService;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final TokenRepository tokenRepository;
@@ -34,18 +37,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Value("${app.default-role}")
     private String defaultRole;
-
-    public AuthServiceImpl(UserRepository userRepository, TokenRepository tokenRepository, RoleRepository roleRepository,
-                           AuthenticationManager authenticationManager, JwtService jwtService, JwtProperties jwtProperties,
-                           PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.tokenRepository = tokenRepository;
-        this.roleRepository = roleRepository;
-        this.authenticationManager = authenticationManager;
-        this.jwtService = jwtService;
-        this.jwtProperties = jwtProperties;
-        this.passwordEncoder = passwordEncoder;
-    }
 
     @Override
     public UserEntity register(Credentials credentials) {
@@ -109,6 +100,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public AuthTokens refreshAccessToken(String refreshToken) {
         UUID refreshTokenId = jwtService.getRefreshTokenId(refreshToken);
 
